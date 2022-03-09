@@ -61,6 +61,8 @@ async function release({
   if (!packagesWithChanges.some(({ changedReleasableFiles }) => changedReleasableFiles.length)) {
     console.log('no releasable code');
     return;
+  } else {
+    console.log('releasable code');
   }
 
   let releaseTrees = await buildReleaseGraph({

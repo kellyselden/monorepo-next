@@ -10,6 +10,7 @@ const { trackNewVersion } = require('./version');
 const semver = require('semver');
 const dependencyTypes = require('./dependency-types');
 const { isCycle } = require('./build-dag');
+const debug = require('./debug')('build-release-graph');
 
 const defaultReleaseType = 'patch';
 
@@ -272,12 +273,18 @@ async function buildReleaseGraph({
 }) {
   let releaseTrees = {};
 
+  debug('before firstPass');
+
   await firstPass({
     releaseTrees,
     packagesWithChanges,
   });
 
+  debug('after firstPass');
+
   // only packages with changes have been analyzed
+
+  debug('before secondPass');
 
   await secondPass({
     releaseTrees,
@@ -287,7 +294,11 @@ async function buildReleaseGraph({
     shouldExcludeDevChanges,
   });
 
+  debug('after secondPass');
+
   // packages without changes, but need to be analyzed because of options
+
+  debug('before thirdPass');
 
   thirdPass({
     releaseTrees,
@@ -295,13 +306,19 @@ async function buildReleaseGraph({
     shouldInheritGreaterReleaseType,
   });
 
+  debug('after thirdPass');
+
   // dependents have now inherited release type
+
+  debug('before fourthPass');
 
   fourthPass({
     releaseTrees,
     packagesWithChanges,
     shouldBumpInRangeDependencies,
   });
+
+  debug('after fourthPass');
 
   // dependencies are now bumped if needed
 
