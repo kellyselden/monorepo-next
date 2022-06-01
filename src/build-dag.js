@@ -19,6 +19,7 @@ function thirdPass({
   group,
   branch,
   visitedNodes,
+  shouldThrowOnCycle,
 }) {
   let currentPackageName = group.node.packageName;
 
@@ -40,12 +41,20 @@ function thirdPass({
       let visitedNode = visitedNodes[_package.packageName];
 
       if (visitedNode) {
-        group.node.dependents.push({
+        let newGroup = {
           parent,
           dependencyType,
           dependencyRange,
           node: visitedNode,
-        });
+        };
+
+        if (shouldThrowOnCycle && isCycle(newGroup, {
+          shouldIgnoreDevDependencyCycles: false,
+        })) {
+          throw new Error('cycle detected');
+        }
+
+        group.node.dependents.push(newGroup);
 
         continue;
       }
@@ -70,25 +79,51 @@ function thirdPass({
           group: newGroup,
           branch: newBranch,
           visitedNodes,
+          shouldThrowOnCycle,
         });
       }
     }
   }
 }
 
-function isCycle(group) {
+let noCycle = [];
+let yesCycle = [];
+
+function isCycle(group, {
+  shouldIgnoreDevDependencyCycles = true,
+} = {}) {
+  if (group.node?.packageName) {
+    if (noCycle.includes(group.node?.packageName)) {
+      return false;
+    }
+    if (yesCycle.includes(group.node?.packageName)) {
+      return true;
+    }
+  }
+
   let current = group;
 
+  let asdf = current.node?.packageName;
+
   do {
+    if (!shouldIgnoreDevDependencyCycles && current.dependencyType === 'devDependencies') {
+      return false;
+    }
+
     current = current.parent;
 
     if (!current) {
+      // noCycle.push(group.node?.packageName);
       return false;
     }
 
     if (current.node === group.node) {
+      // yesCycle.push(group.node?.packageName);
       return true;
     }
+
+    asdf += ` - ${current.node.packageName}`;
+    // console.log(asdf)
   } while (true);
 }
 
@@ -128,7 +163,10 @@ function createPackageNode({
   };
 }
 
-function buildDAG(workspaceMeta, packageName) {
+function buildDAG(workspaceMeta, packageName, {
+  visitedNodes = {},
+  shouldThrowOnCycle = false,
+} = {}) {
   let {
     newGroup,
     newBranch,
@@ -138,14 +176,19 @@ function buildDAG(workspaceMeta, packageName) {
     branch: [],
   });
 
-  let visitedNodes = {};
+  let node = visitedNodes[packageName];
 
-  thirdPass({
-    workspaceMeta,
-    group: newGroup,
-    branch: newBranch,
-    visitedNodes,
-  });
+  if (node) {
+    newGroup.node = node;
+  } else {
+    thirdPass({
+      workspaceMeta,
+      group: newGroup,
+      branch: newBranch,
+      visitedNodes,
+      shouldThrowOnCycle,
+    });
+  }
 
   return newGroup;
 }

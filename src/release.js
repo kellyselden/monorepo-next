@@ -68,6 +68,8 @@ async function release({
     shouldExcludeDevChanges,
   });
 
+  throw new Error('lkajsdfkl');
+
   for (let releaseTree of releaseTrees) {
     let name = releaseTree.name;
     let cwd = releaseTree.cwd;

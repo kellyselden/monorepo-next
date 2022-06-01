@@ -14,6 +14,8 @@ const { isCycle } = require('./build-dag');
 const defaultReleaseType = 'patch';
 
 async function getReleaseType(packageName, cwd) {
+  return defaultReleaseType;
+
   let tagPrefix = `${packageName}@`;
 
   let originalCwd = process.cwd();
@@ -99,7 +101,10 @@ async function firstPass({
   releaseTrees,
   packagesWithChanges,
 }) {
+  let i = 1;
   for (let { dag, changedReleasableFiles } of packagesWithChanges) {
+    console.log(`${i++} - ${dag.node.packageName}`);
+
     if (!changedReleasableFiles.length) {
       continue;
     }
@@ -124,7 +129,10 @@ async function secondPass({
 }) {
   let visitedNodes = new Set();
 
+  let i = 1;
   for (let { dag, changedReleasableFiles } of packagesWithChanges) {
+    console.log(`${i++} - ${dag.node.packageName}`);
+
     if (!changedReleasableFiles.length) {
       continue;
     }
@@ -182,7 +190,10 @@ function thirdPass({
   shouldInheritGreaterReleaseType,
   shouldExcludeDevChanges,
 }) {
+  let i = 1;
   for (let { dag, changedReleasableFiles } of packagesWithChanges) {
+    console.log(`${i++} - ${dag.node.packageName}`);
+
     if (!changedReleasableFiles.length) {
       continue;
     }
@@ -234,7 +245,10 @@ function fourthPass({
   packagesWithChanges,
   shouldBumpInRangeDependencies,
 }) {
+  let i = 1;
   for (let { dag, changedReleasableFiles } of packagesWithChanges) {
+    console.log(`${i++} - ${dag.node.packageName}`);
+
     if (!changedReleasableFiles.length) {
       continue;
     }
