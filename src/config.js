@@ -16,6 +16,9 @@ function loadPackageConfig(cwd) {
   }
 
   return {
+    defaultBranchName: 'master',
+    defaultBranchSource: 'remote',
+    remoteName: 'origin',
     shouldBumpVersion: true,
     ...nextConfig,
   };
