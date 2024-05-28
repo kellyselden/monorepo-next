@@ -15,10 +15,10 @@ const {
   getWorkspaceCwd,
   getCurrentCommit,
 } = require('./git');
-const semver = require('semver');
 const { builder } = require('../bin/commands/release');
 const debug = require('./debug');
 const { createAsyncLogger } = require('./log');
+const { spawn, Pool, Worker } = require('threads');
 
 async function release({
   cwd = process.cwd(),
@@ -78,7 +78,6 @@ async function release({
   });
 
   for (let releaseTree of releaseTrees) {
-    let name = releaseTree.name;
     let cwd = releaseTree.cwd;
 
     let packageJsonPath = path.join(cwd, 'package.json');
@@ -107,55 +106,22 @@ async function release({
     if (!dryRun) {
       await writeJson(packageJsonPath, packageJson);
     }
+  }
 
-    // eslint-disable-next-line no-inner-declarations
-    async function originalVersion(options) {
-      await require('standard-version')({
-        path: cwd,
-        skip: {
-          commit: true,
-          tag: true,
-        },
-        silent,
-        dryRun,
-        tagPrefix: `${name}@`,
-        releaseAs: releaseTree.releaseType,
-        scripts,
-        packageFiles,
-        bumpFiles,
-        ...options,
-      });
-    }
+  let pool = Pool(() => spawn(new Worker('./bump-version-thread')));
 
-    if (releaseTree.shouldBumpVersion) {
-      let originalCwd = process.cwd();
-
-      try {
-        process.chdir(cwd);
-
-        if (versionOverride) {
-          await versionOverride({
-            cwd,
-            originalVersion,
-          });
-        } else {
-          await originalVersion();
-        }
-      } finally {
-        process.chdir(originalCwd);
-      }
-
-      let version;
-
-      if (dryRun) {
-        version = semver.inc(releaseTree.oldVersion, releaseTree.releaseType);
-      } else {
-        version = (await readJson(packageJsonPath)).version;
-      }
-
-      // eslint-disable-next-line require-atomic-updates
-      releaseTree.newVersion = version;
-    }
+  try {
+    releaseTrees = await Promise.all(releaseTrees.map(releaseTree => pool.queue(bumpVersion => bumpVersion({
+      releaseTree,
+      silent,
+      dryRun,
+      scripts,
+      packageFiles,
+      bumpFiles,
+      versionOverride,
+    }))));
+  } finally {
+    await pool.terminate(true);
   }
 
   async function handleLifecycleScript(lifecycle) {
